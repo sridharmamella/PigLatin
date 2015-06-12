@@ -1,0 +1,80 @@
+//Extract only tweets
+
+REGISTER /usr/lib/pig/lib/elephant-bird-pig-4.5.jar; 
+REGISTER /usr/lib/pig/lib/elephant-bird-hadoop-compat-4.5.jar;
+tweets = LOAD 'tweetsStream.txt' USING com.twitter.elephantbird.pig.load.JsonLoader('-nestedLoad') as (json:map[]);
+tweets_text = FOREACH twwets GENERATE json#'text' AS text;
+tweets_limited =LIMIT  tweets_text 100;
+STORE tweets_limited INTO 'pigoutput/tweets_limited.csv' USING PigStorage();
+dump tweets_limited;
+
+
+//Total English tweets
+
+REGISTER /usr/lib/pig/lib/elephant-bird-pig-4.5.jar; 
+REGISTER /usr/lib/pig/lib/elephant-bird-hadoop-compat-4.5.jar;
+tweets = LOAD 'tweetsStream.txt' USING com.twitter.elephantbird.pig.load.JsonLoader('-nestedLoad') as (json:map[]) ;
+users= FOREACH tweets GENERATE json#'user'#'id' as id:int,json#'user'#'lang' as lang:chararray;
+english_tweets = FILTER users BY lang=='en';
+groups = GROUP english_tweets by lang ;
+engish_tweets_count = foreach groups generate group as lang, COUNT(english_tweets) as cnt ;
+STORE engish_tweets_count INTO 'pigoutput/tweets_english.csv' USING PigStorage();
+---dump engish_tweets_count;
+
+
+//Total English Tweets By Country_Code
+
+REGISTER /usr/lib/pig/lib/elephant-bird-pig-4.5.jar; 
+REGISTER /usr/lib/pig/lib/elephant-bird-hadoop-compat-4.5.jar;
+tweets = LOAD 'tweetsStream.txt' USING com.twitter.elephantbird.pig.load.JsonLoader('-nestedLoad') as (json:map[]) ;
+users= FOREACH tweets GENERATE json#'place'#'country_code' as country_code:chararray,json#'user'#'lang' as lang:chararray;
+english_tweets = FILTER users BY lang=='en';
+groups = GROUP english_tweets by country_code ;
+english_tweets_by_country = foreach groups  generate  group as country_code,COUNT(english_tweets) as cnt ;
+dump english_tweets_by_country;
+
+
+//Top countries  with most active tweeters
+
+REGISTER /usr/lib/pig/lib/elephant-bird-pig-4.5.jar; 
+REGISTER /usr/lib/pig/lib/elephant-bird-hadoop-compat-4.5.jar;
+tweets = LOAD 'tweetsStream.txt' USING com.twitter.elephantbird.pig.load.JsonLoader('-nestedLoad') as (json:map[]) ;
+users_contry= FOREACH tweets GENERATE json#'place'#'country_code' as country_code:chararray,json#'user'#'id' as user_id:int;
+unique_user_country= distinct users_contry;
+groups = GROUP unique_user_country by country_code ;
+totalusersByCountry = foreach groups generate group as country_code, COUNT(unique_user_country) as user_cnt;
+topCountries = order totalusersByCountry by user_cnt desc;
+dump topCountries;
+
+
+//Top Ten Tweeter and their tweets count
+
+REGISTER /usr/lib/pig/lib/elephant-bird-pig-4.5.jar; 
+REGISTER /usr/lib/pig/lib/elephant-bird-hadoop-compat-4.5.jar;
+tweets = LOAD 'tweetsStream.txt' USING com.twitter.elephantbird.pig.load.JsonLoader('-nestedLoad') as (json:map[]) ;
+user_tweets= FOREACH tweets GENERATE json#'id' as tweet_id:int,json#'user'#'id' as id:int;
+groups = GROUP user_tweets by id ;
+totaltweets_userid = foreach groups generate group as user_id, COUNT(user_tweets) as tweets_cnt;
+user_total_tweets = order totaltweets_userid by tweets_cnt desc;
+top_ten_tweeters = LIMIT user_total_tweets 10;
+dump top_ten_tweeters;
+
+
+//List Geos for UK
+
+REGISTER /usr/lib/pig/lib/elephant-bird-pig-4.5.jar; 
+REGISTER /usr/lib/pig/lib/elephant-bird-hadoop-compat-4.5.jar;
+tweets = LOAD 'tweetsStream.txt' USING com.twitter.elephantbird.pig.load.JsonLoader('-nestedLoad') as (json:map[]) ;
+geosWithCountry= FOREACH tweets GENERATE json#'geo'#'coordinates' as coordinates,json#'place'#'country_code' as country_code:chararray;
+geosForUK = FILTER geosWithCountry BY country_code=='GB';
+dump geosForUK;
+
+
+//List Geos  for EU
+
+REGISTER /usr/lib/pig/lib/elephant-bird-pig-4.5.jar; 
+REGISTER /usr/lib/pig/lib/elephant-bird-hadoop-compat-4.5.jar;
+tweets = LOAD 'tweetsStream.txt' USING com.twitter.elephantbird.pig.load.JsonLoader('-nestedLoad') as (json:map[]) ;
+geosWithCountry= FOREACH tweets GENERATE json#'geo'#'coordinates' as coordinates:tuple,json#'place'#'country_code' as country_code:chararray;
+geosForEU = FILTER geosWithCountry BY country_code=='EU';
+dump geosForEU;
